@@ -1,11 +1,15 @@
 // Place your settings in this file to overwrite default and user settings.
 {
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+
   "files.exclude": {
     ".vscode": true,
     "builds/**": true
   },
   "search.exclude": {
     "**/node_modules": true,
-    "projects/**": true
+    "projects/**": true,
+    "workbench": true
   }
 }

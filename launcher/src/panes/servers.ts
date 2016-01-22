@@ -1,15 +1,13 @@
-/* tslint:disable */
-let TreeView = require("dnd-tree-view");
-/* tslint:enable */
+import * as TreeView from "dnd-tree-view";
 import * as dialogs from "../../../SupClient/src/dialogs/index";
 import * as config from "../config";
 
-let serversTreeView = new TreeView(document.querySelector(".servers-tree-view"), { multipleSelection: false });
+const serversTreeView = new TreeView(document.querySelector(".servers-tree-view") as HTMLElement, { multipleSelection: false });
 export { serversTreeView };
 
 function start() {
-  for (let serverEntry of config.serverEntries) {
-    let liElt = createServerElement(serverEntry);
+  for (const serverEntry of config.serverEntries) {
+    const liElt = createServerElement(serverEntry);
     serversTreeView.append(liElt, "item");
   }
 
@@ -23,16 +21,16 @@ function start() {
 }
 
 function createServerElement(entry: { name: string; address: string; }) {
-  let liElt = <HTMLLIElement>document.createElement("li");
+  const liElt = document.createElement("li") as HTMLLIElement;
   liElt.dataset["name"] = entry.name;
   liElt.dataset["address"] = entry.address;
 
-  let nameSpan = <HTMLSpanElement>document.createElement("span");
+  const nameSpan = document.createElement("span") as HTMLSpanElement;
   nameSpan.className = "name";
   nameSpan.textContent = entry.name;
   liElt.appendChild(nameSpan);
 
-  let addressSpan = document.createElement("span");
+  const addressSpan = document.createElement("span");
   addressSpan.className = "address";
   addressSpan.textContent = entry.address;
   liElt.appendChild(addressSpan);
@@ -51,7 +49,7 @@ function onAddServerClick() {
       /* tslint:enable:no-unused-expression */
       if (address == null) return;
 
-      let liElt = createServerElement({ name, address });
+      const liElt = createServerElement({ name, address });
       serversTreeView.append(liElt, "item");
     });
   });
@@ -60,13 +58,13 @@ function onAddServerClick() {
 function onRenameServerClick() {
   if (serversTreeView.selectedNodes.length !== 1) return;
 
-  let node = serversTreeView.selectedNodes[0];
+  const node = serversTreeView.selectedNodes[0];
 
   /* tslint:disable:no-unused-expression */
-  new dialogs.PromptDialog("Enter a new name for the server.", { initialValue: node.dataset.name, validationLabel: "Rename" }, (name: string) => {
+  new dialogs.PromptDialog("Enter a new name for the server.", { initialValue: node.dataset["name"], validationLabel: "Rename" }, (name: string) => {
     /* tslint:enable:no-unused-expression */
     if (name == null) return;
-    node.dataset.name = name;
+    node.dataset["name"] = name;
     node.querySelector(".name").textContent = name;
   });
 }
@@ -74,13 +72,13 @@ function onRenameServerClick() {
 function onEditAddressClick() {
   if (serversTreeView.selectedNodes.length !== 1) return;
 
-  let node = serversTreeView.selectedNodes[0];
+  const node = serversTreeView.selectedNodes[0];
 
   /* tslint:disable:no-unused-expression */
-  new dialogs.PromptDialog("Enter the new server address.", { initialValue: node.dataset.address, validationLabel: "Update" }, (address: string) => {
+  new dialogs.PromptDialog("Enter the new server address.", { initialValue: node.dataset["address"], validationLabel: "Update" }, (address: string) => {
     /* tslint:enable:no-unused-expression */
     if (address == null) return;
-    node.dataset.address = address;
+    node.dataset["address"] = address;
     node.querySelector(".address").textContent = address;
  });
 }
@@ -88,10 +86,10 @@ function onEditAddressClick() {
 function onRemoveAddressClick() {
   if (serversTreeView.selectedNodes.length !== 1) return;
 
-  let node = serversTreeView.selectedNodes[0];
+  const node = serversTreeView.selectedNodes[0];
 
   /* tslint:disable:no-unused-expression */
-  new dialogs.ConfirmDialog(`Do you want to delete the server ${node.dataset.name}?`, "Delete", (confirmed: boolean) => {
+  new dialogs.ConfirmDialog(`Do you want to delete the server ${node.dataset["name"]}?`, "Delete", (confirmed: boolean) => {
     /* tslint:enable:no-unused-expression */
     if (!confirmed) return;
 
@@ -100,15 +98,15 @@ function onRemoveAddressClick() {
 }
 
 function onSelectionChange() {
-  let noServerSelected = serversTreeView.selectedNodes.length === 0;
+  const noServerSelected = serversTreeView.selectedNodes.length === 0;
   (document.querySelector(".servers .buttons .rename-server") as HTMLButtonElement).disabled = noServerSelected;
   (document.querySelector(".servers .buttons .edit-address") as HTMLButtonElement).disabled = noServerSelected;
   (document.querySelector(".servers .buttons .remove-server") as HTMLButtonElement).disabled = noServerSelected;
 }
 
-let ipcRenderer: GitHubElectron.IpcRenderer = nodeRequire("electron").ipcRenderer;
+const ipcRenderer: GitHubElectron.IpcRenderer = nodeRequire("electron").ipcRenderer;
 function onServerActivate() {
-  let address = serversTreeView.selectedNodes[0].dataset.address;
+  const address = serversTreeView.selectedNodes[0].dataset["address"];
   ipcRenderer.send("new-server-window", address);
 }
 

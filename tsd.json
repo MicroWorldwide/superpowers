@@ -6,7 +6,7 @@
   "bundle": "typings/tsd.d.ts",
   "installed": {
     "node/node.d.ts": {
-      "commit": "f8af639bf29b2b00e5d27ce93c0f046564b8525c"
+      "commit": "2e7a477ac2b6471055aa6e0e56b333e8f327d6b7"
     },
     "async/async.d.ts": {
       "commit": "0dd29bf8253536ae24e61c109524e924ea510046"
@@ -27,10 +27,10 @@
       "commit": "a61199a4684d70334795302f09fb2a6b8ca016db"
     },
     "socket.io/socket.io.d.ts": {
-      "commit": "a61199a4684d70334795302f09fb2a6b8ca016db"
+      "commit": "f2c140074f7c318ae1042284758575fafea6efab"
     },
     "recursive-readdir/recursive-readdir.d.ts": {
-      "commit": "7acdb48f24afc060260818c5937f471d73331807"
+      "commit": "93bae1bb4c887c1375a4c1f0c3bb849ff06b8ac6"
     },
     "es6-promise/es6-promise.d.ts": {
       "commit": "c2c22c3b953fe9730d4802022d5e0d18d083909e"
@@ -51,7 +51,7 @@
       "commit": "16134c168d021351acb1673ee9659644fc58c424"
     },
     "github-electron/github-electron.d.ts": {
-      "commit": "f8af639bf29b2b00e5d27ce93c0f046564b8525c"
+      "commit": "2e7a477ac2b6471055aa6e0e56b333e8f327d6b7"
     }
   }
 }

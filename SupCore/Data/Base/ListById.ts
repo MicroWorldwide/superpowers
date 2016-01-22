@@ -2,22 +2,18 @@ import * as base from "./index";
 import { EventEmitter } from "events";
 
 export default class ListById extends EventEmitter {
-  pub: any[];
-  schema: any;
   generateNextId: Function;
   nextId = 0;
 
-  byId: {[id: string]: any} = {};
+  byId: { [id: string]: any } = {};
 
-  constructor(pub: any[], schema: any, generateNextId?: Function) {
+  constructor(public pub: any[], public schema: SupCore.Data.Schema, generateNextId?: Function) {
     super();
-    this.pub = pub;
-    this.schema = schema;
     this.generateNextId = generateNextId;
 
     let maxItemId = -1;
 
-    for (let item of this.pub) {
+    for (const item of this.pub) {
       // NOTE: Legacy stuff from Superpowers 0.4
       if (typeof item.id === "number") item.id = item.id.toString();
 
@@ -27,7 +23,7 @@ export default class ListById extends EventEmitter {
 
     if (this.generateNextId == null) {
       this.generateNextId = () => {
-        let id = this.nextId.toString();
+        const id = this.nextId.toString();
         this.nextId++;
         return id;
       };
@@ -36,18 +32,18 @@ export default class ListById extends EventEmitter {
   }
 
   add(item: any, index: number, callback: (err: string, index?: number) => any) {
-    if (item.id != null && this.schema.id == null) { callback("Found unexpected id key"); return; }
+    if (item.id != null && this.schema["id"] == null) { callback("Found unexpected id key"); return; }
 
-    let missingKeys = Object.keys(this.schema);
-    for (let key in item) {
-      let value = item[key];
-      let rule = this.schema[key];
+    const missingKeys = Object.keys(this.schema);
+    for (const key in item) {
+      const value = item[key];
+      const rule = this.schema[key];
       if (rule == null) {
         if(key === "id" && value == null) continue;
         callback(`Invalid key: ${key}`);
         return;
       }
-      let violation = base.getRuleViolation(value, rule, true);
+      const violation = base.getRuleViolation(value, rule, true);
       if (violation != null) { callback(`Invalid value for ${key}: ${base.formatRuleViolation(violation)}`); return; }
 
       missingKeys.splice(missingKeys.indexOf(key), 1);
@@ -72,11 +68,11 @@ export default class ListById extends EventEmitter {
   }
 
   move(id: string, index: number, callback: (err: string, index?: number) => any) {
-    let item = this.byId[id];
+    const item = this.byId[id];
     if (item == null) { callback(`Invalid item id: ${id}`); return; }
 
     if (index == null || index < 0 || index >= this.pub.length) index = this.pub.length;
-    let oldIndex = this.pub.indexOf(item);
+    const oldIndex = this.pub.indexOf(item);
     this.pub.splice(oldIndex, 1);
 
     let actualIndex = index;
@@ -88,9 +84,9 @@ export default class ListById extends EventEmitter {
   }
 
   client_move(id: string, newIndex: number) {
-    let item = this.byId[id];
+    const item = this.byId[id];
 
-    let oldIndex = this.pub.indexOf(item);
+    const oldIndex = this.pub.indexOf(item);
     this.pub.splice(oldIndex, 1);
 
     if (oldIndex < newIndex) newIndex--;
@@ -98,10 +94,10 @@ export default class ListById extends EventEmitter {
   }
 
   remove(id: string, callback: (err: string, index?: number) => any) {
-    let item = this.byId[id];
+    const item = this.byId[id];
     if (item == null) { callback(`Invalid item id: ${id}`); return; }
 
-    let index = this.pub.indexOf(item);
+    const index = this.pub.indexOf(item);
     this.pub.splice(index, 1);
     delete this.byId[id];
 
@@ -110,7 +106,7 @@ export default class ListById extends EventEmitter {
   }
 
   client_remove(id: string) {
-    let item = this.byId[id];
+    const item = this.byId[id];
     this.pub.splice(this.pub.indexOf(item), 1);
     delete this.byId[id];
   }
@@ -121,21 +117,21 @@ export default class ListById extends EventEmitter {
     let item = this.byId[id];
     if (item == null) { callback(`Invalid item id: ${id}`); return; }
 
-    let parts = path.split(".");
+    const parts = path.split(".");
 
     let rule = this.schema[parts[0]];
-    for (let part of parts.slice(1)) {
+    for (const part of parts.slice(1)) {
       rule = rule.properties[part];
       if (rule.type === "any") break;
     }
 
     if (rule == null) { callback(`Invalid key: ${path}`); return; }
     if (rule.type !== "any") {
-      let violation = base.getRuleViolation(value, rule);
+      const violation = base.getRuleViolation(value, rule);
       if (violation != null) { callback(`Invalid value for ${path}: ${base.formatRuleViolation(violation)}`); return; }
     }
 
-    for (let part of parts.slice(0, parts.length - 1)) item = item[part];
+    for (const part of parts.slice(0, parts.length - 1)) item = item[part];
     item[parts[parts.length - 1]] = value;
 
     callback(null, value);
@@ -143,10 +139,10 @@ export default class ListById extends EventEmitter {
   }
 
   client_setProperty(id: string, path: string, value: number|string|boolean) {
-    let parts = path.split(".");
+    const parts = path.split(".");
 
     let item = this.byId[id];
-    for (let part of parts.slice(0, parts.length - 1)) item = item[part];
+    for (const part of parts.slice(0, parts.length - 1)) item = item[part];
     item[parts[parts.length - 1]] = value;
   }
 }

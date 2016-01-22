@@ -1,14 +1,14 @@
 import ListById from "./Base/ListById";
 import * as _ from "lodash";
 
-let characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 export default class Projects extends ListById {
-  static schema = {
+  static schema: SupCore.Data.Schema = {
     name: { type: "string", minLength: 1, maxLength: 80 },
     description: { type: "string", maxLength: 300 },
     formatVersion: { type: "number?" },
-    system: { type: "string" }
+    systemId: { type: "string" }
   };
 
   static sort(a: SupCore.Data.ProjectManifestPub, b: SupCore.Data.ProjectManifestPub) {

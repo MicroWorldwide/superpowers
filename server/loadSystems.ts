@@ -6,65 +6,65 @@ import * as readdirRecursive from "recursive-readdir";
 import { getLocalizedFilename } from "./paths";
 
 function shouldIgnoreFolder(pluginName: string) { return pluginName.indexOf(".") !== -1 || pluginName === "node_modules"; }
-let systemsPath = path.resolve(`${__dirname}/../systems`);
+const systemsPath = path.resolve(`${__dirname}/../systems`);
 
-export let buildFilesBySystem: { [systemName: string]: string[]; } = {};
+export const buildFilesBySystem: { [systemId: string]: string[]; } = {};
 
 export default function(mainApp: express.Express, buildApp: express.Express, callback: Function) {
-  async.eachSeries(fs.readdirSync(systemsPath), (systemName, cb) => {
-    if (systemName.indexOf(".") !== -1) { cb(); return; }
+  async.eachSeries(fs.readdirSync(systemsPath), (systemFolderName, cb) => {
+    if (systemFolderName.indexOf(".") !== -1) { cb(); return; }
 
-    let systemPath = path.join(systemsPath, systemName);
+    const systemPath = path.join(systemsPath, systemFolderName);
     if (!fs.statSync(systemPath).isDirectory()) { cb(); return; }
 
-    SupCore.system = SupCore.systems[systemName] = new SupCore.System(systemName);
+    const systemId = JSON.parse(fs.readFileSync(path.join(systemsPath, systemFolderName, "package.json"), { encoding: "utf8" })).superpowers.systemId;
+    SupCore.system = SupCore.systems[systemId] = new SupCore.System(systemId, systemFolderName);
 
     // Expose public stuff
     try { fs.mkdirSync(`${systemPath}/public`); } catch (err) { /* Ignore */ }
-    mainApp.use(`/systems/${systemName}`, express.static(`${systemPath}/public`));
-    buildApp.use(`/systems/${systemName}`, express.static(`${systemPath}/public`));
+    mainApp.use(`/systems/${systemId}`, express.static(`${systemPath}/public`));
+    buildApp.use(`/systems/${systemId}`, express.static(`${systemPath}/public`));
 
     // Write templates list
     let templatesList: string[] = [];
-    let templatesFolder = `${systemPath}/public/templates`;
-    if (fs.existsSync(templatesFolder))
-      templatesList = fs.readdirSync(templatesFolder);
+    const templatesFolder = `${systemPath}/public/templates`;
+    if (fs.existsSync(templatesFolder)) templatesList = fs.readdirSync(templatesFolder);
     fs.writeFileSync(`${systemPath}/public/templates.json`, JSON.stringify(templatesList, null, 2));
 
     // Load plugins
-    let pluginsInfo = loadPlugins(systemName, `${systemPath}/plugins`, mainApp, buildApp);
+    const pluginsInfo = loadPlugins(systemId, `${systemPath}/plugins`, mainApp, buildApp);
 
-    let packagePath = `${systemPath}/package.json`;
+    const packagePath = `${systemPath}/package.json`;
     if (fs.existsSync(packagePath)) {
-      let packageJSON = JSON.parse(fs.readFileSync(packagePath, { encoding: "utf8" }));
+      const packageJSON = JSON.parse(fs.readFileSync(packagePath, { encoding: "utf8" }));
       if (packageJSON.superpowers != null && packageJSON.superpowers.publishedPluginBundles != null)
         pluginsInfo.publishedBundles = pluginsInfo.publishedBundles.concat(packageJSON.superpowers.publishedPluginBundles);
     }
     fs.writeFileSync(`${systemPath}/public/plugins.json`, JSON.stringify(pluginsInfo, null, 2));
 
     // Build files
-    let buildFiles: string[] = buildFilesBySystem[systemName] = [ "/SupCore.js" ];
+    const buildFiles: string[] = buildFilesBySystem[systemId] = [ "/SupCore.js" ];
 
-    for (let plugin of pluginsInfo.list) {
-      for (let bundleName of pluginsInfo.publishedBundles) {
-        buildFiles.push(`/systems/${systemName}/plugins/${plugin}/bundles/${bundleName}.js`);
+    for (const plugin of pluginsInfo.list) {
+      for (const bundleName of pluginsInfo.publishedBundles) {
+        buildFiles.push(`/systems/${systemId}/plugins/${plugin}/bundles/${bundleName}.js`);
       }
     }
 
     readdirRecursive(`${systemPath}/public`, (err, entries) => {
-      for (let entry of entries) {
-        let relativePath = path.relative(`${systemPath}/public`, entry);
+      for (const entry of entries) {
+        const relativePath = path.relative(`${systemPath}/public`, entry);
         if (relativePath === "manifest.json") continue;
         if (relativePath.slice(0, "templates".length) === "templates") continue;
         if (relativePath.slice(0, "locales".length) === "templates") continue;
 
-        buildFiles.push(`/systems/${systemName}/${relativePath}`);
+        buildFiles.push(`/systems/${systemId}/${relativePath}`);
       }
 
       cb();
     });
   }, () => {
-    let systemsInfo: SupCore.SystemsInfo = { list: Object.keys(SupCore.systems) };
+    const systemsInfo: SupCore.SystemsInfo = { list: Object.keys(SupCore.systems) };
     fs.writeFileSync(`${__dirname}/../public/systems.json`, JSON.stringify(systemsInfo, null, 2));
 
     SupCore.system = null;
@@ -72,30 +72,30 @@ export default function(mainApp: express.Express, buildApp: express.Express, cal
   });
 }
 
-function loadPlugins (systemName: string, pluginsPath: string, mainApp: express.Express, buildApp: express.Express): SupCore.PluginsInfo {
-  let pluginNamesByAuthor: { [author: string]: string[] } = {};
-  let pluginsInfo: SupCore.PluginsInfo = { list: [], paths: { editors: {}, tools: {} }, publishedBundles: [] };
+function loadPlugins (systemId: string, pluginsPath: string, mainApp: express.Express, buildApp: express.Express): SupCore.PluginsInfo {
+  const pluginNamesByAuthor: { [author: string]: string[] } = {};
+  const pluginsInfo: SupCore.PluginsInfo = { list: [], paths: { editors: {}, tools: {} }, publishedBundles: [] };
 
   let pluginsFolder: string[];
   try { pluginsFolder = fs.readdirSync(pluginsPath); } catch (err) { /* Ignore */ }
   if (pluginsFolder == null) return pluginsInfo;
 
-  for (let pluginAuthor of pluginsFolder) {
-    let pluginAuthorPath = `${pluginsPath}/${pluginAuthor}`;
+  for (const pluginAuthor of pluginsFolder) {
+    const pluginAuthorPath = `${pluginsPath}/${pluginAuthor}`;
     if (shouldIgnoreFolder(pluginAuthor)) continue;
 
     pluginNamesByAuthor[pluginAuthor] = [];
-    for (let pluginName of fs.readdirSync(pluginAuthorPath)) {
+    for (const pluginName of fs.readdirSync(pluginAuthorPath)) {
       if (shouldIgnoreFolder(pluginName)) continue;
 
-      let pluginPath = `${pluginsPath}/${pluginAuthor}/${pluginName}`;
+      const pluginPath = `${pluginsPath}/${pluginAuthor}/${pluginName}`;
       if (!fs.statSync(pluginPath).isDirectory()) continue;
 
       pluginNamesByAuthor[pluginAuthor].push(pluginName);
 
-      let packageData = fs.readFileSync(`${pluginPath}/package.json`, { encoding: "utf8" });
+      const packageData = fs.readFileSync(`${pluginPath}/package.json`, { encoding: "utf8" });
       if (packageData != null) {
-        let packageJSON = JSON.parse(packageData);
+        const packageJSON = JSON.parse(packageData);
         if (packageJSON.superpowers != null && packageJSON.superpowers.publishedPluginBundles != null)
           pluginsInfo.publishedBundles = pluginsInfo.publishedBundles.concat(packageJSON.superpowers.publishedPluginBundles);
       }
@@ -103,20 +103,24 @@ function loadPlugins (systemName: string, pluginsPath: string, mainApp: express.
   }
 
   Object.keys(pluginNamesByAuthor).forEach((pluginAuthor) => {
-    let pluginNames = pluginNamesByAuthor[pluginAuthor];
-    let pluginAuthorPath = `${pluginsPath}/${pluginAuthor}`;
+    const pluginNames = pluginNamesByAuthor[pluginAuthor];
+    const pluginAuthorPath = `${pluginsPath}/${pluginAuthor}`;
 
     pluginNames.forEach((pluginName) => {
-      let pluginPath = `${pluginAuthorPath}/${pluginName}`;
+      const pluginPath = `${pluginAuthorPath}/${pluginName}`;
 
       // Load data module
-      let dataModulePath = `${pluginPath}/data/index.js`;
-      if (fs.existsSync(dataModulePath)) require(dataModulePath);
+      const dataModulePath = `${pluginPath}/data/index.js`;
+      if (fs.existsSync(dataModulePath)) {
+        /* tslint:disable */
+        require(dataModulePath);
+        /* tslint:enable */
+      }
 
       // Collect plugin info
       pluginsInfo.list.push(`${pluginAuthor}/${pluginName}`);
       if (fs.existsSync(`${pluginPath}/public/editors`)) {
-        let editors = fs.readdirSync(`${pluginPath}/public/editors`);
+        const editors = fs.readdirSync(`${pluginPath}/public/editors`);
         editors.forEach((editorName) => {
           if (SupCore.system.data.assetClasses[editorName] != null) {
             pluginsInfo.paths.editors[editorName] = `${pluginAuthor}/${pluginName}`;
@@ -124,10 +128,10 @@ function loadPlugins (systemName: string, pluginsPath: string, mainApp: express.
             pluginsInfo.paths.tools[editorName] = `${pluginAuthor}/${pluginName}`;
           }
 
-          mainApp.get(`/systems/${systemName}/plugins/${pluginAuthor}/${pluginName}/editors/${editorName}`, (req, res) => {
-            let language = req.cookies["supLanguage"];
-            let editorPath = path.join(pluginPath, "public/editors", editorName);
-            let localizedIndexFilename = getLocalizedFilename("index.html", language);
+          mainApp.get(`/systems/${systemId}/plugins/${pluginAuthor}/${pluginName}/editors/${editorName}`, (req, res) => {
+            const language = req.cookies["supLanguage"];
+            const editorPath = path.join(pluginPath, "public/editors", editorName);
+            const localizedIndexFilename = getLocalizedFilename("index.html", language);
             fs.exists(path.join(editorPath, localizedIndexFilename), (exists) => {
               if (exists) res.sendFile(path.join(editorPath, localizedIndexFilename));
               else res.sendFile(path.join(editorPath, `index.html`));
@@ -137,25 +141,25 @@ function loadPlugins (systemName: string, pluginsPath: string, mainApp: express.
       }
 
       // Expose public stuff
-      mainApp.get(`/systems/${systemName}/plugins/${pluginAuthor}/${pluginName}/locales/*.json`, (req, res) => {
-        let localeFile = req.path.split("/locales/")[1];
-        let localePath = path.join(pluginPath, "public/locales", localeFile);
+      mainApp.get(`/systems/${systemId}/plugins/${pluginAuthor}/${pluginName}/locales/*.json`, (req, res) => {
+        const localeFile = req.path.split("/locales/")[1];
+        const localePath = path.join(pluginPath, "public/locales", localeFile);
         fs.exists(localePath, (exists) => {
           if (exists) res.sendFile(localePath);
           else res.send("{}");
         });
       });
 
-      for (let app of [mainApp, buildApp]) {
-        app.get(`/systems/${systemName}/plugins/${pluginAuthor}/${pluginName}/bundles/*.js`, (req, res) => {
-          let bundleFile = req.path.split("/bundles/")[1];
-          let bundlePath = path.join(pluginPath, "public/bundles", bundleFile);
+      for (const app of [mainApp, buildApp]) {
+        app.get(`/systems/${systemId}/plugins/${pluginAuthor}/${pluginName}/bundles/*.js`, (req, res) => {
+          const bundleFile = req.path.split("/bundles/")[1];
+          const bundlePath = path.join(pluginPath, "public/bundles", bundleFile);
           fs.exists(bundlePath, (exists) => {
             if (exists) res.sendFile(bundlePath);
             else res.send("");
           });
         });
-        app.use(`/systems/${systemName}/plugins/${pluginAuthor}/${pluginName}`, express.static(`${pluginPath}/public`));
+        app.use(`/systems/${systemId}/plugins/${pluginAuthor}/${pluginName}`, express.static(`${pluginPath}/public`));
       }
     });
   });

@@ -4,15 +4,15 @@
 declare namespace SupClient {
   export const namePattern: string;
 
-  export let isApp: boolean;
-  export let query: { project: string, asset: string; [key: string]: string; };
-  export let cookies: Cookies.CookiesStatic;
+  export const isApp: boolean;
+  export const query: { project: string, asset: string; [key: string]: string; };
+  export const cookies: Cookies.CookiesStatic;
 
   export function fetch(url: string, responseType: string, callback: (err: Error, data: any) => any): void;
 
   export let activePluginPath: string;
-  export let plugins: { [context: string]: { [name: string]: { path: string; content: any; } } };
-  export function registerPlugin(context: string, name: string, plugin: any): void;
+  export function registerPlugin<T>(contextName: string, pluginName: string, plugin: T): void;
+  export function getPlugins<T>(contextName: string): { [pluginName: string]: { path: string; content: T; } };
 
   export function connect(projectId: string, options?: { reconnection: boolean; }): SocketIOClient.Socket;
   export function onAssetTrashed(): void;
@@ -21,8 +21,8 @@ declare namespace SupClient {
   export function setupHelpCallback(callback: Function): void;
   export function getTreeViewInsertionPoint(treeView: any): { parentId: string; index: number };
 
-  export function getTreeViewDropPoint(dropInfo: any, treeById: SupCore.Data.Base.TreeById): { parentId: string; index: number };
-  export function getListViewDropIndex(dropInfo: any, listById: SupCore.Data.Base.ListById, reversed?: boolean): number;
+  export function getTreeViewDropPoint(dropLocation: { target: HTMLLIElement|HTMLOListElement; where: string; }, treeById: SupCore.Data.Base.TreeById): { parentId: string; index: number };
+  export function getListViewDropIndex(dropLocation: { target: HTMLLIElement|HTMLOListElement; where: string; }, listById: SupCore.Data.Base.ListById, reversed?: boolean): number;
   export function findEntryByPath(entries: any, path: string|string[]): any;
 
   export function setupCollapsablePane(pane: HTMLDivElement, refreshCallback?: Function): void;
@@ -107,7 +107,7 @@ declare namespace SupClient {
   }
 
   namespace i18n {
-    export let languageIds: string[];
+    export const languageIds: string[];
 
     export interface File {
       root: string;
@@ -138,8 +138,10 @@ declare namespace SupClient {
 
     subAsset(assetId: string, assetType: string, subscriber: AssetSubscriber): void;
     unsubAsset(assetId: string, subscriber: AssetSubscriber): void;
+    editAsset(assetId: string, command: string, ...args: any[]): void;
     subResource(resourceId: string, subscriber: ResourceSubscriber): void;
     unsubResource(resourceId: string, subscriber: ResourceSubscriber): void;
+    editResource(resourceId: string, command: string, ...args: any[]): void;
   }
 
   interface EntriesSubscriber {
