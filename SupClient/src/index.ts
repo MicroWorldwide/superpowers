@@ -1,34 +1,42 @@
 import * as io from "socket.io-client";
+import * as url from "url";
 import * as querystring from "querystring";
 import * as cookies from "js-cookie";
 
-/* tslint:disable:no-unused-variable */
 import fetch from "./fetch";
+import readFile from "./readFile";
 import ProjectClient from "./ProjectClient";
-import setupHotkeys, { setupHelpCallback } from "./setupHotkeys";
+import { setupHotkeys, setupHelpCallback } from "./events";
 import * as table from "./table";
-import * as dialogs from "./dialogs/index";
+import * as Dialogs from "simple-dialogs";
+import FindAssetDialog from "./FindAssetDialog";
 import * as i18n from "./i18n";
-/* tslint:enable:no-unused-variable */
+import html from "./html";
+import "./events";
 
-import * as PerfectResize from "perfect-resize";
+import * as ResizeHandle from "resize-handle";
 import * as TreeView from "dnd-tree-view";
 
-export { fetch, cookies, ProjectClient, setupHotkeys, setupHelpCallback, table, dialogs, i18n };
-
-export const isApp = window.navigator.userAgent.indexOf("Electron") !== -1;
+export { fetch, readFile, cookies, ProjectClient, setupHotkeys, setupHelpCallback, table, Dialogs, i18n, html };
 export const query = querystring.parse(window.location.search.slice(1));
+
+(Dialogs as any).FindAssetDialog = FindAssetDialog;
 
 // Refuses filesystem-unsafe characters
 // See http://superuser.com/q/358855
 export const namePattern = "[^\\\\/:*?\"<>|\\[\\]]+";
 
+// Expose SupApp to iframes
+if ((global as any).SupApp == null) {
+  (global as any).SupApp = ((top as any).SupApp != null) ? (top as any).SupApp : null;
+}
+
 // Initialize empty system
 SupCore.system = new SupCore.System("", "");
 
-export let activePluginPath: string;
-
 const plugins: { [contextName: string]: { [pluginName: string]: { path: string; content: any; } } } = {};
+
+const scriptPathRegex = /^\/systems\/([^\/])+\/plugins\/([^\/])+\/([^\/])+/;
 export function registerPlugin<T>(contextName: string, pluginName: string, plugin: T) {
   if (plugins[contextName] == null) plugins[contextName] = {};
 
@@ -38,7 +46,9 @@ export function registerPlugin<T>(contextName: string, pluginName: string, plugi
     return;
   }
 
-  plugins[contextName][pluginName] = { path: activePluginPath, content: plugin };
+  const scriptURL = url.parse((document as any).currentScript.src);
+  const pluginPath = scriptPathRegex.exec(scriptURL.pathname)[0];
+  plugins[contextName][pluginName] = { path: pluginPath, content: plugin };
 }
 
 export function getPlugins<T>(contextName: string): { [pluginName: string]: { path: string; content: T; } } {
@@ -93,7 +103,7 @@ export function onDisconnected() {
   document.body.appendChild(div);
 }
 
-export function getTreeViewInsertionPoint(treeView: any) {
+export function getTreeViewInsertionPoint(treeView: TreeView) {
   let selectedElt = treeView.selectedNodes[0];
   let parentId: string;
   let index: number;
@@ -104,12 +114,12 @@ export function getTreeViewInsertionPoint(treeView: any) {
     }
     else {
       if (selectedElt.parentElement.classList.contains("children")) {
-        parentId = selectedElt.parentElement.previousSibling.dataset["id"];
+        parentId = (selectedElt.parentElement.previousElementSibling as HTMLElement).dataset["id"];
       }
 
       index = 1;
-      while (selectedElt.previousSibling != null) {
-        selectedElt = selectedElt.previousSibling;
+      while (selectedElt.previousElementSibling != null) {
+        selectedElt = selectedElt.previousElementSibling as HTMLLIElement;
         if (selectedElt.tagName === "LI") index++;
       }
     }
@@ -126,8 +136,12 @@ export function getTreeViewDropPoint(dropLocation: TreeView.DropLocation, treeBy
 
   switch (dropLocation.where) {
     case "inside": {
-      parentNode = treeById.byId[targetEntryId];
-      index = parentNode.children.length;
+      if (targetEntryId != null) {
+        parentNode = treeById.byId[targetEntryId];
+        index = parentNode.children.length;
+      } else {
+        index = 0;
+      }
     } break;
     case "above":
     case "below": {
@@ -175,8 +189,12 @@ export function findEntryByPath(entries: any, path: string|string[]) {
   return foundEntry;
 }
 
+export function openEntry(entryId: string, state?: any) {
+  window.parent.postMessage({ type: "openEntry", id: entryId, state }, window.location.origin);
+}
+
 export function setupCollapsablePane(paneElt: HTMLDivElement, refreshCallback?: Function) {
-  const handle = new PerfectResize(paneElt, "bottom");
+  const handle = new ResizeHandle(paneElt, "bottom");
   if (refreshCallback != null)
     handle.on("drag", () => { refreshCallback(); });
 

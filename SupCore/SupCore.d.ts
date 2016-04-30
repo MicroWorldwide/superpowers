@@ -4,6 +4,13 @@
 declare namespace SupCore {
   export function log(message: string): void;
 
+  export class LocalizedError {
+    key: string;
+    variables: { [key: string]: string; };
+
+    constructor(key: string, variables: { [key: string]: string; });
+  }
+
   namespace Data {
     export function hasDuplicateName(id: string, name: string, siblings: Array<{ id: string; name: string; }>): boolean;
     export function ensureUniqueName(id: string, name: string, siblings: Array<{ id: string; name: string; }>): string;
@@ -250,7 +257,7 @@ declare namespace SupCore {
         save(assetPath: string, callback: (err: Error) => any): void;
         publish(buildPath: string, callback: (err: Error) => any): void;
 
-        server_setProperty(client: any, path: string, value: any, callback: (err: string, path?: string, value?: any) => any): void;
+        server_setProperty(client: RemoteClient, path: string, value: any, callback: (err: string, path?: string, value?: any) => any): void;
       }
 
       class Resource extends Hash {
@@ -276,9 +283,13 @@ declare namespace SupCore {
         save(resourcePath: string, callback: (err: Error) => any): void;
         publish(buildPath: string, callback: (err: Error) => any): void;
 
-        server_setProperty(client: any, path: string, value: number|string|boolean, callback: (err: string, path?: string, value?: any) => any): void;
+        server_setProperty(client: RemoteClient, path: string, value: number|string|boolean, callback: (err: string, path?: string, value?: any) => any): void;
       }
     }
+  }
+
+  interface RemoteClient {
+    id: string;
   }
 
   interface PluginsInfo {
@@ -316,6 +327,7 @@ declare namespace SupCore {
 
   // All loaded systems (server-side only)
   export const systems: { [system: string]: System };
+  export const systemsPath: string;
   // The currently active system
   export let system: System;
 

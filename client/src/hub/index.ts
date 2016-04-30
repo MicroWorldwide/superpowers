@@ -1,5 +1,4 @@
-import "../window";
-import CreateOrEditProjectDialog, { SystemsData } from "../dialogs/CreateOrEditProjectDialog";
+import CreateOrEditProjectDialog, { SystemsData } from "./CreateOrEditProjectDialog";
 import * as async from "async";
 
 import * as TreeView from "dnd-tree-view";
@@ -25,7 +24,6 @@ function start() {
 
   document.querySelector(".projects-buttons .new-project").addEventListener("click", onNewProjectClick);
   document.querySelector(".projects-buttons .open-project").addEventListener("click", onProjectActivate);
-  if ("ontouchstart" in window) (document.querySelector(".projects-buttons .open-project") as HTMLButtonElement).hidden = false;
   document.querySelector(".projects-buttons .edit-project").addEventListener("click", onEditProjectClick);
 
   const selectLanguageElt = document.querySelector("select.language") as HTMLSelectElement;
@@ -114,7 +112,7 @@ function onConnected() {
 }
 
 function onDisconnected() {
-  SupClient.dialogs.cancelDialogIfAny();
+  SupClient.Dialogs.cancelDialogIfAny();
 
   data.projects = null;
 
@@ -123,7 +121,7 @@ function onDisconnected() {
   const buttons = document.querySelectorAll(".projects-buttons button") as NodeListOf<HTMLButtonElement>;
   for (let i = 0; i < buttons.length; i++) buttons[i].disabled = true;
 
-  (document.querySelector(".connecting") as HTMLDivElement).hidden = false;
+  (document.querySelector(".tree-loading") as HTMLDivElement).hidden = false;
 }
 
 function onProjectsReceived(err: string, projects: SupCore.Data.ProjectManifestPub[]) {
@@ -137,7 +135,7 @@ function onProjectsReceived(err: string, projects: SupCore.Data.ProjectManifestP
     ui.projectsTreeView.append(liElt, "item");
   }
 
-  (document.querySelector(".connecting") as HTMLDivElement).hidden = true;
+  (document.querySelector(".tree-loading") as HTMLDivElement).hidden = true;
 }
 
 function onProjectAdded(manifest: SupCore.Data.ProjectManifestPub, index: number) {
@@ -211,28 +209,32 @@ function onProjectSelectionChange() {
 }
 
 function onProjectActivate() {
-  const href = `/project/?project=${ui.projectsTreeView.selectedNodes[0].dataset["id"]}`;
+  const projectId = ui.projectsTreeView.selectedNodes[0].dataset["id"];
+  const href = `/project/?project=${projectId}`;
 
-  // When in the app, use location.replace to avoid creating an history item
-  // which could lead to accidentally navigating back by pressing Backspace
-  if (SupClient.isApp) window.location.replace(`${window.location.origin}${href}`);
+  if (SupApp != null) SupApp.openWindow(`${window.location.origin}${href}`);
   else window.location.href = href;
 }
 
 let autoOpenProject = true;
 function onNewProjectClick() {
   /* tslint:disable:no-unused-expression */
-  new CreateOrEditProjectDialog(data.systemsById, { autoOpen: autoOpenProject }, (project, open) => {
+  new CreateOrEditProjectDialog(data.systemsById, { autoOpen: autoOpenProject }, (result) => {
     /* tslint:enable:no-unused-expression */
-    if (project == null) return;
-    autoOpenProject = open;
+    if (result == null) return;
+    autoOpenProject = result.open;
 
-    socket.emit("add:projects", project, onProjectAddedAck);
+    socket.emit("add:projects", result.project, onProjectAddedAck);
   });
 }
 
 function onProjectAddedAck(err: string, id: string) {
-  if (err != null) { new SupClient.dialogs.InfoDialog(err, SupClient.i18n.t("common:actions.close")); return; }
+  if (err != null) {
+    /* tslint:disable:no-unused-expression */
+    new SupClient.Dialogs.InfoDialog(err);
+    /* tslint:enable:no-unused-expression */
+    return;
+  }
 
   ui.projectsTreeView.clearSelection();
 
@@ -250,15 +252,21 @@ function onEditProjectClick() {
   const existingProject = data.projects.byId[selectedNode.dataset["id"]];
 
   /* tslint:disable:no-unused-expression */
-  new CreateOrEditProjectDialog(data.systemsById, { existingProject }, (editedProject) => {
+  new CreateOrEditProjectDialog(data.systemsById, { existingProject }, (result) => {
     /* tslint:enable:no-unused-expression */
-    if (editedProject == null) return;
+    if (result == null) return;
+    autoOpenProject = result.open;
 
-    delete editedProject.systemId;
-    if (editedProject.icon == null) delete editedProject.icon;
+    delete result.project.systemId;
+    if (result.project.icon == null) delete result.project.icon;
 
-    socket.emit("edit:projects", existingProject.id, editedProject, (err: string) => {
-      if (err != null) { new SupClient.dialogs.InfoDialog(err, SupClient.i18n.t("common:actions.close")); return; }
+    socket.emit("edit:projects", existingProject.id, result.project, (err: string) => {
+      if (err != null) {
+        /* tslint:disable:no-unused-expression */
+        new SupClient.Dialogs.InfoDialog(err);
+        /* tslint:enable:no-unused-expression */
+        return;
+      }
     });
   });
 }
